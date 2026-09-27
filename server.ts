@@ -105,6 +105,71 @@ Contexte utilisateur actuel:
   return res.json({ reply });
 });
 
+// API: Scan a meter/invoice photo and extract readings via Gemini Vision
+app.post("/api/scan-meter", async (req, res) => {
+  const { imageBase64, mimeType } = req.body;
+
+  if (!imageBase64) {
+    return res.status(400).json({ error: "Image (base64) requise" });
+  }
+
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+  if (!GEMINI_API_KEY || GEMINI_API_KEY === "MY_GEMINI_API_KEY") {
+    return res.status(200).json({
+      error: "Scan IA indisponible : ajoutez votre clé GEMINI_API_KEY dans le fichier .env pour activer la lecture automatique des compteurs.",
+    });
+  }
+
+  const prompt = `Tu analyses une photo d'un compteur électrique CIE (Côte d'Ivoire) ou d'une facture d'électricité/gasoil pour une PME à Abidjan.
+Extrait UNIQUEMENT les valeurs suivantes si elles sont clairement visibles sur l'image, sinon mets null :
+- cieKWh : consommation électrique en kWh (nombre)
+- cieFCFA : montant de la facture électricité en Francs CFA (nombre)
+- gasoilLitres : volume de gasoil livré en litres, si visible (nombre)
+- gasoilFCFA : coût du gasoil en FCFA, si visible (nombre)
+- meterNumber : numéro du compteur, si visible (texte)
+- period : période/mois de la facture, si visible (texte)
+
+Réponds STRICTEMENT en JSON valide, sans texte autour, sans balises markdown, selon ce format exact :
+{"cieKWh": number|null, "cieFCFA": number|null, "gasoilLitres": number|null, "gasoilFCFA": number|null, "meterNumber": string|null, "period": string|null}`;
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: mimeType || "image/jpeg", data: imageBase64 } },
+              ],
+            },
+          ],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 512, responseMimeType: "application/json" },
+        }),
+      }
+    );
+
+    const data = await response.json();
+    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!rawText) {
+      return res.status(200).json({ error: "Aucune donnée extraite de la photo." });
+    }
+
+    const cleaned = rawText.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+    return res.json(parsed);
+  } catch (error: any) {
+    console.error("Gemini Vision (scan-meter) Error:", error);
+    return res.status(200).json({ error: "Échec de l'analyse de la photo. Réessayez ou saisissez manuellement." });
+  }
+});
+
 // Setup Vite Dev server or Serve build assets
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

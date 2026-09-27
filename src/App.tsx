@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { 
   Building2, 
   Settings, 
@@ -18,6 +18,8 @@ import {
   ShieldAlert, 
   Coins, 
   TrendingDown, 
+  Camera, 
+  Loader2, 
   Compass, 
   Bell, 
   Sliders,
@@ -584,6 +586,56 @@ export default function App() {
   ];
 
   // Quick input action
+  const meterFileInputRef = useRef<HTMLInputElement>(null);
+  const [isScanningMeter, setIsScanningMeter] = useState(false);
+
+  const handleMeterPhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    setIsScanningMeter(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = () => reject(new Error("Lecture de l'image impossible"));
+        reader.readAsDataURL(file);
+      });
+
+      const response = await fetch("/api/scan-meter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64, mimeType: file.type || "image/jpeg" }),
+      });
+      const data = await response.json();
+
+      if (data?.error || !data) {
+        throw new Error(data?.error || "Réponse vide du scan");
+      }
+
+      let fieldsFilled = 0;
+      if (typeof data.cieKWh === "number" && data.cieKWh > 0) { setNewCieKWh(String(data.cieKWh)); fieldsFilled++; }
+      if (typeof data.cieFCFA === "number" && data.cieFCFA > 0) { setNewCieFCFA(String(data.cieFCFA)); fieldsFilled++; }
+      if (typeof data.gasoilLitres === "number" && data.gasoilLitres > 0) { setNewGasoilLitres(String(data.gasoilLitres)); fieldsFilled++; }
+      if (typeof data.gasoilFCFA === "number" && data.gasoilFCFA > 0) { setNewGasoilFCFA(String(data.gasoilFCFA)); fieldsFilled++; }
+
+      setSystemNotifications(prev => [
+        fieldsFilled > 0
+          ? `Photo analysée : ${fieldsFilled} champ(s) pré-rempli(s) automatiquement. Vérifiez les valeurs avant d'enregistrer.`
+          : "Photo analysée, mais aucune valeur claire détectée. Merci de saisir manuellement.",
+        ...prev
+      ]);
+    } catch (err: any) {
+      setSystemNotifications(prev => [
+        "Scan indisponible pour cette photo (éclairage, cadrage ou clé IA manquante). Saisissez les valeurs manuellement.",
+        ...prev
+      ]);
+    } finally {
+      setIsScanningMeter(false);
+    }
+  };
+
   const handleAddRecord = (e: React.FormEvent) => {
     e.preventDefault();
     const cieVal = parseFloat(newCieKWh) || 0;
@@ -1634,10 +1686,37 @@ export default function App() {
                   <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs lg:col-span-1 space-y-4">
                     <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                       <PlusCircle className="text-emerald-500 w-5 h-5 shrink-0" />
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-bold text-slate-900 text-sm">Déclaration Assistée Mensuelle</h3>
                         <p className="text-[10px] text-slate-500">Aucun IoT requis • Saisie manuelle de relevé</p>
                       </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        ref={meterFileInputRef}
+                        onChange={handleMeterPhotoSelected}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => meterFileInputRef.current?.click()}
+                        disabled={isScanningMeter}
+                        className="shrink-0 flex items-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2.5 py-2 rounded-xl border border-emerald-200 transition disabled:opacity-60 cursor-pointer"
+                        title="Prendre en photo le compteur CIE ou la facture pour pré-remplir les champs"
+                      >
+                        {isScanningMeter ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Analyse...
+                          </>
+                        ) : (
+                          <>
+                            <Camera className="w-3.5 h-3.5" />
+                            Scanner
+                          </>
+                        )}
+                      </button>
                     </div>
 
                     {/* Saisie assists */}
