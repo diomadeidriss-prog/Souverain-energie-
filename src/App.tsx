@@ -17,6 +17,7 @@ import {
   Zap, 
   ShieldAlert, 
   Coins, 
+  TrendingDown, 
   Compass, 
   Bell, 
   Sliders,
@@ -238,6 +239,15 @@ export default function App() {
   // DGE Compliance Level & Warning Status
   const criticalLimit = adminThreshold.mwhLimit; // 1000 MWh
   const percentageOfLimit = (totalMWh / criticalLimit) * 100;
+
+  // ROI & Économies: comparaison du dernier relevé vs le précédent
+  const sortedByTimeDesc = [...energyRecords].sort((a, b) => getRecordTime(b) - getRecordTime(a));
+  const latestRecord = sortedByTimeDesc[0];
+  const previousRecord = sortedByTimeDesc[1];
+  const latestTotalCostFCFA = latestRecord ? latestRecord.cieCostFCFA + latestRecord.gasoilCostFCFA : 0;
+  const previousTotalCostFCFA = previousRecord ? previousRecord.cieCostFCFA + previousRecord.gasoilCostFCFA : 0;
+  const savingsFCFA = previousRecord ? previousTotalCostFCFA - latestTotalCostFCFA : 0;
+  const savingsPercent = previousTotalCostFCFA > 0 ? (savingsFCFA / previousTotalCostFCFA) * 100 : 0;
 
   const activeInfrastructure = infrastructureProfiles[infrastructureType];
   const usageFactor = Math.max(0.45, operatingHoursPerDay / activeInfrastructure.defaultHours);
@@ -1578,6 +1588,39 @@ export default function App() {
                           <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" /> Gasoil :
                         </span>
                         <span className="font-bold text-slate-800">{totalGasoilCostFCFA.toLocaleString('fr-FR')} F</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ROI & Savings card */}
+                  <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">ROI & Économies</span>
+                        <TrendingDown className={`w-4 h-4 ${savingsFCFA >= 0 ? "text-emerald-500" : "text-red-500"}`} />
+                      </div>
+                      <h3 className="text-sm font-semibold text-slate-800 mt-1">Vs mois précédent</h3>
+                    </div>
+
+                    <div className="my-2">
+                      <div className={`text-2xl font-black tracking-tight ${savingsFCFA >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                        {savingsFCFA >= 0 ? "-" : "+"}{Math.abs(savingsFCFA).toLocaleString('fr-FR')} FCFA
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-medium">
+                        {previousRecord
+                          ? `${savingsFCFA >= 0 ? "Économisé" : "Surcoût"} (${Math.abs(savingsPercent).toFixed(1)}%) grâce à la maîtrise de conso`
+                          : "Ajoutez un second relevé pour comparer"}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2 pt-2 border-t border-slate-100 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Dernier relevé :</span>
+                        <span className="font-bold text-slate-800">{latestRecord ? `${latestRecord.month} ${latestRecord.year}` : "—"}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Coût facturé :</span>
+                        <span className="font-bold text-slate-800">{latestTotalCostFCFA.toLocaleString('fr-FR')} F</span>
                       </div>
                     </div>
                   </div>
