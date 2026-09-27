@@ -121,14 +121,17 @@ app.post("/api/scan-meter", async (req, res) => {
     });
   }
 
-  const prompt = `Tu analyses une photo d'un compteur électrique CIE (Côte d'Ivoire) ou d'une facture d'électricité/gasoil pour une PME à Abidjan.
-Extrait UNIQUEMENT les valeurs suivantes si elles sont clairement visibles sur l'image, sinon mets null :
-- cieKWh : consommation électrique en kWh (nombre)
-- cieFCFA : montant de la facture électricité en Francs CFA (nombre)
-- gasoilLitres : volume de gasoil livré en litres, si visible (nombre)
-- gasoilFCFA : coût du gasoil en FCFA, si visible (nombre)
-- meterNumber : numéro du compteur, si visible (texte)
-- period : période/mois de la facture, si visible (texte)
+  const prompt = `Tu analyses la photo d'une facture CIE (Compagnie Ivoirienne d'Électricité) ou d'un compteur électrique, pour une PME à Abidjan. La facture peut être en BASSE TENSION (particuliers/petites PME, avec un tableau "Index ancien / Index nouveau / Différence" et une ligne "Consommation enregistrée (kWh)") ou en MOYENNE TENSION (grosses PME, kWh directement listés).
+
+Repère et extrait ces valeurs :
+- cieKWh : la consommation en kWh de la période. Priorité : la valeur "Consommation enregistrée" ou "Consommation" si présente. Sinon, calcule-la toi-même = Index Nouveau − Index Ancien.
+- cieFCFA : le montant total à payer pour l'électricité. Priorité à "Montant total à régler" ou "Montant net à payer" (TTC + toutes taxes incluses type redevance électrification rurale, taxe ordures ménagères, timbre d'état). Si absent, prends le "Total facture TTC".
+- gasoilLitres : volume de gasoil en litres, uniquement si un bon de livraison gasoil est visible sur l'image (souvent absent d'une facture CIE classique) — sinon null.
+- gasoilFCFA : coût du gasoil en FCFA, si visible — sinon null.
+- meterNumber : numéro du compteur ou référence facture, si visible (texte).
+- period : la période de facturation affichée (ex: "04/08/2020 au 04/10/2020" ou le mois indiqué en "PERIODE") (texte).
+
+Ignore les numéros de client, codes-barres, ou autres identifiants qui ne sont pas des kWh ou des FCFA.
 
 Réponds STRICTEMENT en JSON valide, sans texte autour, sans balises markdown, selon ce format exact :
 {"cieKWh": number|null, "cieFCFA": number|null, "gasoilLitres": number|null, "gasoilFCFA": number|null, "meterNumber": string|null, "period": string|null}`;

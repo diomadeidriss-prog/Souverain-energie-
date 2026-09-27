@@ -1756,7 +1756,7 @@ export default function App() {
 
                       {/* CIE Medium voltage electrical inputs */}
                       <div className="bg-blue-50/50 p-3 rounded-xl border border-blue-100/60 space-y-2">
-                        <span className="text-[10px] font-bold text-blue-800 uppercase tracking-widest block">Compteur électrique CIE moyenne tension</span>
+                        <span className="text-[10px] font-bold text-blue-800 uppercase tracking-widest block">Compteur électrique CIE (basse ou moyenne tension)</span>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <label className="block text-[9px] text-slate-500 mb-0.5">Consommation (kWh)</label>
