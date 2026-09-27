@@ -1,0 +1,6 @@
+{
+  "name": "Gestion Énergétique Côte d'Ivoire",
+  "description": "Solution 100% logicielle d'homologation et de suivi de la consommation d'énergie (CIE & Gasoil) pour les PME ivoiriennes sous l'Arrêté 156.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
